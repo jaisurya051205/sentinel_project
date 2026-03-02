@@ -16,7 +16,7 @@ if 'logged_in' not in st.session_state:
 def load_data():
     FILE_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "raw", "Crimes.csv")
     if not os.path.exists(FILE_PATH): FILE_PATH = "data/raw/Crimes.csv" 
-    df = pd.read_csv(FILE_PATH, encoding='latin1').sample(n=50000, random_state=42)
+    df = pd.read_csv(FILE_PATH, encoding='latin1').sample(n=10000, random_state=42)
     df['lat'] = pd.to_numeric(df['Latitude'], errors='coerce')
     df['lon'] = pd.to_numeric(df['Longitude'], errors='coerce')
     df['Date'] = pd.to_datetime(df['Date'], errors='coerce')

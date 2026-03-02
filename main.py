@@ -1,90 +1,56 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
+import plotly.express as px
 
-# 1. Page Configuration
-st.set_page_config(page_title="Sentinel Core", layout="wide")
-st.title("Sentinel Project")
-st.write("Real-time Crime Analytics Dashboard")
+# 1. Setup Command Center Layout
+st.set_page_config(page_title="Sentinel Command Center", layout="wide")
+st.title("🚨 Sentinel Core: Command Center")
 
-# 2. Optimized Data Loading
+# 2. Load Data with a higher row count for "Fuller" map
 @st.cache_data
 def load_data():
-    file_path = 'data/raw/Crimes.csv'
-    # Loading 10,000 rows to prevent the "Blank Page" memory error
-    df = pd.read_csv(file_path, nrows=10000)
-    
-    # FIX: Standardize column names to lowercase immediately
-    df.columns = [str(c).lower().strip() for c in df.columns]
-    
-    # FIX: Rename common variations to 'latitude' and 'longitude'
-    df = df.rename(columns={
-        'lat': 'latitude', 
-        'lon': 'longitude',
-        'long': 'longitude',
-        'primary_type': 'primary type'
-    })
-    
-    # FIX: Remove rows with empty location data to prevent Map Crash
+    # 25,000 rows is the "sweet spot" for performance
+    df = pd.read_csv('data/raw/Crimes.csv', nrows=25000)
+    df.columns = [c.lower().strip() for c in df.columns]
+    df = df.rename(columns={'lat': 'latitude', 'lon': 'longitude'})
     df = df.dropna(subset=['latitude', 'longitude'])
-    
+    if 'date' in df.columns:
+        df['date'] = pd.to_datetime(df['date'])
     return df
 
 try:
     df = load_data()
-    st.success("Data loaded successfully!")
+
+    # 3. Top Row: Command Metrics
+    col1, col2, col3 = st.columns(3)
+    col1.metric("Active Patrols", len(df))
+    col2.metric("Districts Covered", df['district'].nunique() if 'district' in df.columns else "N/A")
+    col3.metric("System Status", "ONLINE", delta="Stable")
+
+    # 4. Sidebar: Control Panel
+    st.sidebar.header("🕹️ Control Panel")
+    crime_types = df['primary type'].unique().tolist()
+    selected = st.sidebar.multiselect("Filter Crime Types", crime_types, default=crime_types[:3])
     
-    # 3. Sidebar Filters
-    st.sidebar.header("Filter Options")
+    filtered_df = df[df['primary type'].isin(selected)]
+
+    # 5. The Patrol Map
+    st.subheader("📍 Live Patrol Map")
+    st.map(filtered_df, color="#FF0000")
+
+    # 6. Command Charts
+    chart_col1, chart_col2 = st.columns(2)
     
-    # SAFELY get the crime types
-    if 'primary type' in df.columns:
-        column_to_filter = 'primary type'
-    elif 'category' in df.columns:
-        column_to_filter = 'category'
-    else:
-        # Fallback if names are totally different
-        column_to_filter = df.columns[1] 
+    with chart_col1:
+        st.subheader("📊 Crime Breakdown")
+        fig = px.pie(filtered_df, names='primary type', hole=0.4)
+        st.plotly_chart(fig, use_container_width=True)
 
-    crime_types = df[column_to_filter].unique().tolist()
-    selected_crime = st.sidebar.multiselect("Select Crime Type", crime_types, default=crime_types[:3])
-
-    # 4. Filter the Data
-    filtered_df = df[df[column_to_filter].isin(selected_crime)]
-
-    # 5. Map Visualization
-    st.subheader(f"Crime Hotspots: {', '.join(selected_crime[:2])}...")
-    # This renders the map using the cleaned coordinates
-    st.map(filtered_df)
-
-    # 6. Summary Stats
-    st.write(f"Showing **{len(filtered_df)}** incidents on the map.")
+    with chart_col2:
+        st.subheader("📈 Patrol Trends")
+        if 'date' in filtered_df.columns:
+            trend = filtered_df.resample('D', on='date').size().reset_index(name='count')
+            st.line_chart(trend.set_index('date'))
 
 except Exception as e:
-    st.error(f"Error loading dashboard: {e}")
-    st.info("Ensure your CSV has columns for Latitude and Longitude.")
-
-# 7. Time Series Analysis (Trend Chart)
-st.subheader("Crime Trends Over Time")
-
-if 'date' in filtered_df.columns:
-    try:
-        # Convert date column to actual datetime objects
-        filtered_df['date'] = pd.to_datetime(filtered_df['date'])
-        
-        # Group by date and count number of crimes
-        # 'D' means daily. You can change to 'W' for weekly if it's too messy.
-        crime_trend = filtered_df.resample('D', on='date').size().reset_index(name='Crime Count')
-        
-        # Display a Line Chart
-        st.line_chart(data=crime_trend, x='date', y='Crime Count')
-        
-    except Exception as e:
-        st.write("Could not generate trend chart. Ensure 'Date' column is formatted correctly.")
-else:
-    st.info("Date column not found. Add a 'Date' column to see trends over time.")
-
-# 8. Category Breakdown (Bar Chart)
-st.subheader("Crimes by Category")
-category_counts = filtered_df[column_to_filter].value_counts()
-st.bar_chart(category_counts)
+    st.error(f"Command Center Error: {e}")
