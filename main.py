@@ -88,3 +88,19 @@ else:
 st.subheader("Crimes by Category")
 category_counts = filtered_df[column_to_filter].value_counts()
 st.bar_chart(category_counts)
+
+# 9. Threat Density Heatmap
+st.subheader("🔥 Threat Intensity Heatmap")
+# We use Plotly's density map for a more 'cyber' feel
+fig_heat = px.density_mapbox(
+    filtered_df, 
+    lat='latitude', 
+    lon='longitude', 
+    z=np.ones(len(filtered_df)), # Weight each point equally
+    radius=10,
+    center=dict(lat=filtered_df.latitude.mean(), lon=filtered_df.longitude.mean()),
+    zoom=10,
+    mapbox_style="carto-darkmatter" # Dark mode map
+)
+fig_heat.update_layout(margin={"r":0,"t":0,"l":0,"b":0})
+st.plotly_chart(fig_heat, use_container_width=True)

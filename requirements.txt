@@ -5,3 +5,4 @@ scikit-learn
 plotly
 pydeck
 altair==4.2.2
+standard-imghdr

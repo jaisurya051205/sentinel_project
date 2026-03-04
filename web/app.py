@@ -36,7 +36,7 @@ with st.sidebar:
                 st.session_state.logged_in = True
                 st.rerun()
     else:
-        st.success("✅ Online")
+        st.success("✅ login succesfully ")
         if st.button("Logout"):
             st.session_state.logged_in = False
             st.rerun()
